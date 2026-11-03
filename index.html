@@ -762,7 +762,8 @@ function renderPreview() {
 
 function sendSet(c) {
   const sweep = new Date(c.sweep);
-  let minutes = Math.round((new Date(c.alert) - new Date()) / 60000);
+  // Round up so the reminder lands on the target minute (the shortcut adds whole minutes to the current time, seconds included)
+  let minutes = Math.ceil((new Date(c.alert) - new Date()) / 60000);
   if (minutes < 1) minutes = 1;
   runShortcut({ action: 'set', minutes, title: `Street Sweeping at ${fmt(sweep)}` });
 }
