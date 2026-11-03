@@ -179,6 +179,8 @@
   .tile.on { background: var(--glass-on); color: var(--on-text); border-color: rgba(255, 255, 255, .9); }
   .tile.on .t2 { color: var(--on-muted); }
   .tile.on .ibox { background: var(--accent); color: #fff; }
+  .tile.warn-tile { background: rgba(255, 69, 58, .32); border-color: rgba(255, 140, 130, .55); }
+  .tile.warn-tile .ibox { background: rgba(255, 69, 58, .85); color: #fff; }
   .tile.wide { grid-column: span 2; min-height: 0; flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; }
 
   /* Buttons */
@@ -285,7 +287,6 @@
     <div>
       <h1>K4 Hatchback</h1>
     </div>
-    <button class="round glass" id="gotoSettings" aria-label="Settings"><svg class="ic lg"><use href="#i-gear"/></svg></button>
   </header>
 
   <!-- Car -->
@@ -311,6 +312,33 @@
 
   <!-- Status -->
   <div id="statusSection"></div>
+
+  <!-- Park -->
+  <h2>I Just Parked <span class="sub">Pick the sign's time</span></h2>
+  <div class="status">
+    <span class="dot" id="locDot"></span>
+    <span id="locStatus">Location not found yet</span>
+    <button class="iconbtn" id="locateBtn" aria-label="Refresh location"><svg class="ic sm"><use href="#i-refresh"/></svg></button>
+  </div>
+  <div class="grid" id="pickList"></div>
+  <div id="manualBox" class="panel pad glass hidden" style="margin-top:10px">
+    <div class="two">
+      <div>
+        <label class="f" style="margin-top:0">Sweeping day</label>
+        <select id="manualDay"></select>
+      </div>
+      <div>
+        <label class="f" style="margin-top:0">Start time</label>
+        <input type="time" id="manualStart" value="08:00">
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="manualSave">Also save this to My Sweeping Times</label>
+  </div>
+  <div class="preview glass" id="previewBox"></div>
+  <div class="actions park-actions">
+    <button class="pill go glass" id="parkBtn"><svg class="ic"><use href="#i-bell"/></svg>Set Reminder</button>
+    <a class="pill primary glass" id="remindersBtn" href="x-apple-reminderkit://"><svg class="ic"><use href="#i-list"/></svg>Reminders</a>
+  </div>
 
   <!-- Sweeping times -->
   <h2>My Sweeping Times</h2>
@@ -342,33 +370,6 @@
         <button class="pill primary full glass" id="addSegBtn">Save</button>
       </div>
     </details>
-  </div>
-
-  <!-- Park -->
-  <h2>I Just Parked <span class="sub">Pick the sign's time</span></h2>
-  <div class="status">
-    <span class="dot" id="locDot"></span>
-    <span id="locStatus">Location not found yet</span>
-    <button class="iconbtn" id="locateBtn" aria-label="Refresh location"><svg class="ic sm"><use href="#i-refresh"/></svg></button>
-  </div>
-  <div class="grid" id="pickList"></div>
-  <div id="manualBox" class="panel pad glass hidden" style="margin-top:10px">
-    <div class="two">
-      <div>
-        <label class="f" style="margin-top:0">Sweeping day</label>
-        <select id="manualDay"></select>
-      </div>
-      <div>
-        <label class="f" style="margin-top:0">Start time</label>
-        <input type="time" id="manualStart" value="08:00">
-      </div>
-    </div>
-    <label class="check"><input type="checkbox" id="manualSave">Also save this to My Sweeping Times</label>
-  </div>
-  <div class="preview glass" id="previewBox"></div>
-  <div class="actions park-actions">
-    <button class="pill go glass" id="parkBtn"><svg class="ic"><use href="#i-bell"/></svg>Set Reminder</button>
-    <a class="pill primary glass" id="remindersBtn" href="x-apple-reminderkit://"><svg class="ic"><use href="#i-list"/></svg>Reminders</a>
   </div>
 
   <!-- Settings -->
@@ -655,7 +656,7 @@ function renderCurrent() {
     sec.innerHTML = `
       <h2>Status</h2>
       <div class="grid">
-        <div class="tile wide glass">
+        <div class="tile wide glass warn-tile">
           <span class="ibox">${icon('car')}</span>
           <div><div class="t1">Not parked</div></div>
         </div>
@@ -896,7 +897,6 @@ $('openApple').onclick = closeMapSheet;
 $('openGoogle').onclick = closeMapSheet;
 $('sheetCancel').onclick = closeMapSheet;
 $('sheet').onclick = e => { if (e.target === $('sheet')) closeMapSheet(); };
-$('gotoSettings').onclick = () => $('settingsTitle').scrollIntoView({ behavior: 'smooth' });
 $('centerCar').onclick = () => {
   const c = state.current;
   if (map && c && c.lat != null) centerOn(c.lat, c.lng, 16.5);
