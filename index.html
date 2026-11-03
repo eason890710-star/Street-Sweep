@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sweeping">
 <meta name="theme-color" content="#2c3e5c">
 <title>Street Sweeping</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
   :root {
     color-scheme: dark;
@@ -27,7 +27,7 @@
     --radius-m: 22px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; }
+  html, body { margin: 0; touch-action: manipulation; -webkit-text-size-adjust: 100%; }
   body {
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
@@ -92,11 +92,11 @@
   .hero { position: relative; margin: 0 0 18px; padding: 4px 0 0; }
   .hero .car { display: block; width: 92%; max-width: 360px; margin: 0 -8px 0 auto; position: relative; z-index: 1; }
   .hero .meta-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 6px 4px 0; }
-  .hero .stat { font-size: 30px; font-weight: 700; letter-spacing: -.01em; line-height: 1.1; }
+  .hero .stat { font-size: 22px; font-weight: 700; letter-spacing: -.01em; line-height: 1.1; }
   .hero .stat small { font-size: 15px; font-weight: 600; margin-left: 3px; }
   .hero .label { font-size: 13px; color: var(--muted); margin-top: 2px; }
-  .hero .stat { display: flex; align-items: center; gap: 12px; }
-  .light { width: 12px; height: 12px; border-radius: 50%; flex: none; background: #ff453a;
+  .hero .stat { display: flex; align-items: center; gap: 10px; }
+  .light { width: 10px; height: 10px; border-radius: 50%; flex: none; background: #ff453a;
     box-shadow: 0 0 0 4px rgba(255, 69, 58, .22), 0 0 14px 2px rgba(255, 69, 58, .75); }
   .light.ok { background: #30d158; box-shadow: 0 0 0 4px rgba(48, 209, 88, .22), 0 0 14px 2px rgba(48, 209, 88, .75); }
   .addr { display: flex; align-items: center; gap: 6px; max-width: 100%; margin-top: 6px; padding: 0;
@@ -130,17 +130,15 @@
   .count { font-size: 26px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; }
   .count small { font-size: 13px; font-weight: 500; color: var(--muted); display: block; text-align: right; }
 
-  .leaflet-tile-pane { filter: saturate(.85) brightness(1.02); }
+  .map-card.gray #map canvas { filter: grayscale(1) contrast(.9) brightness(1.05); }
   @media (prefers-color-scheme: dark) {
-    .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.7); }
+    .map-card.gray #map canvas, #map canvas { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.88) saturate(.6); }
   }
-  .leaflet-control-attribution {
-    background: rgba(20, 20, 30, .35) !important; color: rgba(255, 255, 255, .7) !important;
-    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-    border-radius: 8px 0 0 0; font-size: 9px !important;
-  }
-  .leaflet-control-attribution a { color: rgba(255, 255, 255, .85) !important; }
-  .map-card.has-info .leaflet-bottom { bottom: 104px; }
+  .maplibregl-ctrl-attrib { background: rgba(20, 20, 30, .35) !important; color: rgba(255, 255, 255, .75); font-size: 9px; }
+  .maplibregl-ctrl-attrib a { color: rgba(255, 255, 255, .85) !important; }
+  .maplibregl-ctrl-attrib-button { filter: invert(1); }
+  .map-card.has-info .maplibregl-ctrl-bottom-right { bottom: 96px; }
+  .seg-dot { cursor: default; }
 
   .car-pin {
     width: 44px; height: 44px; border-radius: 50%;
@@ -167,7 +165,9 @@
     text-align: left; color: var(--text); font: inherit; cursor: default;
     transition: background .2s, transform .15s;
   }
-  button.tile { cursor: pointer; }
+  button.tile, a.tile { cursor: pointer; }
+  a.tile { text-decoration: none; }
+  a.tile:active { transform: scale(.97); }
   button.tile:active { transform: scale(.97); }
   .tile .ibox {
     width: 34px; height: 34px; border-radius: 50%;
@@ -312,41 +312,40 @@
   <!-- Status -->
   <div id="statusSection"></div>
 
-  <!-- Spots -->
-  <h2>My Spots</h2>
+  <!-- Sweeping times -->
+  <h2>My Sweeping Times</h2>
   <div class="panel glass">
     <div id="segList"></div>
     <details id="addDetails" style="border-top:1px solid rgba(255,255,255,.12)">
       <summary class="summary">
         <span class="ibox-sq"><svg class="ic sm"><use href="#i-plus"/></svg></span>
-        Add Spot
+        Add Sweeping Time
         <svg class="ic sm chev"><use href="#i-chev"/></svg>
       </summary>
       <div class="body">
-        <label class="f" style="margin-top:0">Name</label>
-        <input type="text" id="segName" placeholder="e.g. 36th St, north side">
         <div class="three">
           <div>
-            <label class="f">Day</label>
+            <label class="f" style="margin-top:0">Day</label>
             <select id="segDay"></select>
           </div>
           <div>
-            <label class="f">Start</label>
+            <label class="f" style="margin-top:0">Start</label>
             <input type="time" id="segStart" value="08:00">
           </div>
           <div>
-            <label class="f">End</label>
+            <label class="f" style="margin-top:0">End</label>
             <input type="time" id="segEnd" value="10:00">
           </div>
         </div>
-        <label class="check"><input type="checkbox" id="segUseLoc" checked>Save my current location so this spot is suggested when I'm nearby</label>
-        <button class="pill primary full glass" id="addSegBtn">Save Spot</button>
+        <label class="f">Label (optional)</label>
+        <input type="text" id="segName" placeholder="e.g. North side of 36th St">
+        <button class="pill primary full glass" id="addSegBtn">Save</button>
       </div>
     </details>
   </div>
 
   <!-- Park -->
-  <h2>I Just Parked <span class="sub">Pick your spot</span></h2>
+  <h2>I Just Parked <span class="sub">Pick the sign's time</span></h2>
   <div class="status">
     <span class="dot" id="locDot"></span>
     <span id="locStatus">Location not found yet</span>
@@ -364,6 +363,7 @@
         <input type="time" id="manualStart" value="08:00">
       </div>
     </div>
+    <label class="check"><input type="checkbox" id="manualSave">Also save this to My Sweeping Times</label>
   </div>
   <div class="preview glass" id="previewBox"></div>
   <div class="actions park-actions">
@@ -391,7 +391,7 @@
 </div>
 <div class="toast glass" id="toast"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
 const KEY = 'sweep-app-v1';
 const SHORTCUT_NAME = 'Street Sweeping Alert';
@@ -537,59 +537,77 @@ function openMapSheet() {
 function closeMapSheet() { $('sheet').classList.add('hidden'); }
 
 // ---------- Map ----------
-let map = null, carMarker = null, meMarker = null, segLayer = null, tileLayer = null;
+let map = null, carMarker = null, meMarker = null;
+const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 
+function el(html) {
+  const d = document.createElement('div');
+  d.innerHTML = html;
+  return d.firstElementChild;
+}
+function centerOn(lat, lng, zoom) {
+  if (!map) return;
+  const bottom = $('mapCard').classList.contains('has-info') ? 110 : 0;
+  map.jumpTo({ center: [lng, lat], zoom, padding: { top: 0, left: 0, right: 0, bottom } });
+}
 
 function initMap() {
-  if (!window.L) {
+  if (!window.maplibregl) {
     $('map').innerHTML = '<div style="display:grid;place-items:center;height:100%;color:rgba(255,255,255,.7);font-size:14px">Map unavailable. Check your connection.</div>';
     return;
   }
-  map = L.map('map', { zoomControl: false, attributionControl: true }).setView(DEFAULT_CENTER, 15);
-  tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  }).addTo(map);
-  segLayer = L.layerGroup().addTo(map);
+  map = new maplibregl.Map({
+    container: 'map',
+    style: MAP_STYLE,
+    center: [DEFAULT_CENTER[1], DEFAULT_CENTER[0]],
+    zoom: 14,
+    attributionControl: { compact: true },
+    pitchWithRotate: false,
+    dragRotate: false
+  });
+  map.touchZoomRotate.disableRotation();
   map.on('click', openMapSheet);
+  map.on('load', () => { map.resize(); updateMap(true); });
+
+  // Fallback: if the minimal style can't load, use plain OpenStreetMap in grayscale
+  let styleOk = false, fellBack = false;
+  map.on('style.load', () => { styleOk = true; });
+  map.on('error', () => {
+    if (styleOk || fellBack) return;
+    fellBack = true;
+    $('mapCard').classList.add('gray');
+    map.setStyle({
+      version: 8,
+      sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256,
+        attribution: '&copy; OpenStreetMap contributors' } },
+      layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
+    });
+  });
 }
 
 function updateMap(recenter) {
   if (!map) return;
   const c = state.current;
 
-  segLayer.clearLayers();
-  state.segments.filter(s => s.lat != null).forEach(s => {
-    L.marker([s.lat, s.lng], {
-      icon: L.divIcon({ className: '', html: '<div class="seg-dot"></div>', iconSize: [12, 12], iconAnchor: [6, 6] })
-    }).bindTooltip(s.name, { direction: 'top', offset: [0, -6] }).addTo(segLayer);
-  });
-
   if (c && c.lat != null) {
-    const pos = [c.lat, c.lng];
     if (!carMarker) {
-      carMarker = L.marker(pos, {
-        icon: L.divIcon({ className: '', html: `<div class="car-pin">${icon('car')}</div>`, iconSize: [44, 44], iconAnchor: [22, 22] }),
-        zIndexOffset: 1000
-      }).addTo(map);
-    } else carMarker.setLatLng(pos);
+      const node = el(`<div class="car-pin">${icon('car')}</div>`);
+      node.addEventListener('click', e => { e.stopPropagation(); openMapSheet(); });
+      carMarker = new maplibregl.Marker({ element: node }).setLngLat([c.lng, c.lat]).addTo(map);
+    } else carMarker.setLngLat([c.lng, c.lat]);
   } else if (carMarker) {
-    map.removeLayer(carMarker);
+    carMarker.remove();
     carMarker = null;
   }
 
   if (here) {
-    const pos = [here.lat, here.lng];
-    if (!meMarker) {
-      meMarker = L.marker(pos, {
-        icon: L.divIcon({ className: '', html: '<div class="me-dot"></div>', iconSize: [16, 16], iconAnchor: [8, 8] })
-      }).addTo(map);
-    } else meMarker.setLatLng(pos);
+    if (!meMarker) meMarker = new maplibregl.Marker({ element: el('<div class="me-dot"></div>') }).setLngLat([here.lng, here.lat]).addTo(map);
+    else meMarker.setLngLat([here.lng, here.lat]);
   }
 
   if (recenter) {
-    if (carMarker) map.setView(carMarker.getLatLng(), 17);
-    else if (here) map.setView([here.lat, here.lng], 16);
+    if (c && c.lat != null) centerOn(c.lat, c.lng, 16.5);
+    else if (here) centerOn(here.lat, here.lng, 15.5);
   }
 }
 
@@ -610,8 +628,6 @@ function locate(cb) {
     const first = !here;
     here = { lat: p.coords.latitude, lng: p.coords.longitude };
     setLoc(`Located, accurate to about ${Math.round(p.coords.accuracy * 3.28084)} ft`, true);
-    selected = null; // re-suggest the nearest spot
-    renderPick();
     updateMap(first && !state.current);
     cb && cb(here);
   }, err => {
@@ -671,17 +687,17 @@ function renderCurrent() {
         <span class="ibox">${icon('calendar')}</span>
         <div><div class="t1">${fmtShort(sweep)}</div><div class="t2">Next sweeping</div></div>
       </div>
-      <div class="tile glass">
+      <a class="tile glass" href="x-apple-reminderkit://">
         <span class="ibox">${icon('bell')}</span>
         <div><div class="t1">${fmtShort(alertAt)}</div><div class="t2">Reminder</div></div>
-      </div>
+      </a>
       <div class="tile glass">
         <span class="ibox">${icon('clock')}</span>
         <div><div class="t1">${fmtShort(parked)}</div><div class="t2">Parked</div></div>
       </div>
       <button class="tile glass" id="resendBtn">
         <span class="ibox">${icon('refresh')}</span>
-        <div><div class="t1">Resend</div><div class="t2">Create the reminder again</div></div>
+        <div><div class="t1">Resend</div><div class="t2">Create again</div></div>
       </button>
     </div>
     <div class="actions">
@@ -692,24 +708,24 @@ function renderCurrent() {
   $('resendBtn').onclick = () => sendSet(state.current);
 }
 
-// ---------- Pick a spot ----------
+// ---------- Pick a sweeping time ----------
 function renderPick() {
-  const segs = state.segments.map(s => ({ ...s, d: here && s.lat != null ? dist(here, s) : null }));
-  segs.sort((a, b) => (a.d ?? Infinity) - (b.d ?? Infinity));
-  if (!selected) selected = segs.length ? segs[0].id : 'manual';
-
-  let html = segs.map(s => `
-    <button class="tile glass ${selected === s.id ? 'on' : ''}" data-pick="${s.id}">
-      <span class="ibox">${icon('pin')}</span>
+  const segs = state.segments;
+  if (!selected || (selected !== 'manual' && !segs.some(t => t.id === selected))) {
+    selected = segs.some(t => t.id === state.lastUsed) ? state.lastUsed : (segs.length ? segs[0].id : 'manual');
+  }
+  let html = segs.map(t => `
+    <button class="tile glass ${selected === t.id ? 'on' : ''}" data-pick="${t.id}">
+      <span class="ibox">${icon('calendar')}</span>
       <div>
-        <div class="t1">${esc(s.name)}</div>
-        <div class="t2">${DAYS[s.day]} ${hhmm(s.start)}–${hhmm(s.end)}${s.d != null ? '<br>' + fmtDist(s.d) : ''}</div>
+        <div class="t1">${DAYS[t.day]} ${hhmm(t.start)}</div>
+        <div class="t2">${t.name ? esc(t.name) : 'until ' + hhmm(t.end)}</div>
       </div>
     </button>`).join('');
   html += `
     <button class="tile glass ${selected === 'manual' ? 'on' : ''}" data-pick="manual">
       <span class="ibox">${icon('edit')}</span>
-      <div><div class="t1">Other spot</div><div class="t2">Enter the time manually</div></div>
+      <div><div class="t1">Other time</div><div class="t2">Enter it manually</div></div>
     </button>`;
   $('pickList').innerHTML = html;
   $('pickList').querySelectorAll('[data-pick]').forEach(b => {
@@ -719,9 +735,12 @@ function renderPick() {
   renderPreview();
 }
 
+function schedLabel(t) {
+  return `${DAYS[t.day]} ${hhmm(t.start)}${t.end ? '–' + hhmm(t.end) : ''}`;
+}
 function getChoice() {
   if (selected === 'manual') {
-    return { name: 'Other spot', day: Number($('manualDay').value), start: $('manualStart').value || '08:00' };
+    return { day: Number($('manualDay').value), start: $('manualStart').value || '08:00', end: null };
   }
   return state.segments.find(s => s.id === selected) || null;
 }
@@ -745,17 +764,31 @@ function sendSet(c) {
   runShortcut({ action: 'set', minutes, title: `Street Sweeping at ${fmt(sweep)}` });
 }
 
+function addHours(hm, n) {
+  const [h, m] = hm.split(':').map(Number);
+  return `${pad((h + n) % 24)}:${pad(m)}`;
+}
+
 function park() {
   const ch = getChoice();
-  if (!ch) { toast('Pick a spot first'); return; }
+  if (!ch) { toast('Pick a sweeping time first'); return; }
   const sweep = nextSweep(ch.day, ch.start);
   if (!sweep) { toast('Invalid time'); return; }
   const now = new Date();
   let alertAt = new Date(sweep - state.settings.lead * 60000);
   if (alertAt <= now) alertAt = new Date(now.getTime() + 60000);
 
+  if (selected === 'manual' && $('manualSave').checked) {
+    const t = { id: 's' + Date.now(), name: '', day: ch.day, start: ch.start, end: addHours(ch.start, 2) };
+    state.segments.push(t);
+    selected = t.id;
+    $('manualSave').checked = false;
+  }
+  if (selected !== 'manual') state.lastUsed = selected;
+  if (!here) toast('Location not found yet. Reminder set without a location.');
+
   state.current = {
-    name: ch.name,
+    name: schedLabel(ch),
     sweep: sweep.toISOString(),
     alert: alertAt.toISOString(),
     parked: now.toISOString(),
@@ -777,26 +810,27 @@ function clearCurrent() {
   runShortcut({ action: 'clear' });
 }
 
-// ---------- My spots ----------
+// ---------- My sweeping times ----------
 function renderSegs() {
   const box = $('segList');
   if (!state.segments.length) {
-    box.innerHTML = `<div class="empty">No spots yet. Add one while standing where you parked, and it will be suggested automatically next time.</div>`;
+    box.innerHTML = `<div class="empty">No sweeping times yet. Add the times from the signs near where you usually park.</div>`;
     return;
   }
-  box.innerHTML = state.segments.map(s => `
+  const list = [...state.segments].sort((a, b) => a.day - b.day || a.start.localeCompare(b.start));
+  box.innerHTML = list.map(t => `
     <div class="line">
-      <span class="ibox-sq">${icon('pin', 'sm')}</span>
+      <span class="ibox-sq">${icon('calendar', 'sm')}</span>
       <div class="grow">
-        <div class="t1">${esc(s.name)}</div>
-        <div class="t2">${DAYS_LONG[s.day]} ${hhmm(s.start)}–${hhmm(s.end)}${s.lat != null ? ', location saved' : ''}</div>
+        <div class="t1">${DAYS_LONG[t.day]} ${hhmm(t.start)}–${hhmm(t.end)}</div>
+        ${t.name ? `<div class="t2">${esc(t.name)}</div>` : ''}
       </div>
-      <button class="iconbtn del" data-del="${s.id}" aria-label="Delete">${icon('trash')}</button>
+      <button class="iconbtn del" data-del="${t.id}" aria-label="Delete">${icon('trash')}</button>
     </div>`).join('');
   box.querySelectorAll('[data-del]').forEach(b => {
     b.onclick = () => {
-      if (!confirm('Delete this spot?')) return;
-      state.segments = state.segments.filter(s => s.id !== b.dataset.del);
+      if (!confirm('Delete this sweeping time?')) return;
+      state.segments = state.segments.filter(t => t.id !== b.dataset.del);
       if (selected === b.dataset.del) selected = null;
       save();
       renderAll(false);
@@ -805,32 +839,21 @@ function renderSegs() {
 }
 
 function addSeg() {
-  const name = $('segName').value.trim();
-  if (!name) { toast('Enter a name for this spot'); return; }
-  const seg = {
+  const t = {
     id: 's' + Date.now(),
-    name,
+    name: $('segName').value.trim(),
     day: Number($('segDay').value),
     start: $('segStart').value || '08:00',
-    end: $('segEnd').value || '10:00',
-    lat: null, lng: null
+    end: $('segEnd').value || '10:00'
   };
-  const finish = () => {
-    state.segments.push(seg);
-    save();
-    $('segName').value = '';
-    $('addDetails').open = false;
-    selected = seg.id;
-    renderAll(false);
-    toast('Spot saved');
-  };
-  if ($('segUseLoc').checked) {
-    locate(pos => {
-      if (pos) { seg.lat = pos.lat; seg.lng = pos.lng; }
-      else toast('Location failed. Spot saved without a location.');
-      finish();
-    });
-  } else finish();
+  if (state.segments.some(x => x.day === t.day && x.start === t.start)) { toast('This time is already saved'); return; }
+  state.segments.push(t);
+  save();
+  $('segName').value = '';
+  $('addDetails').open = false;
+  selected = t.id;
+  renderAll(false);
+  toast('Sweeping time saved');
 }
 
 function renderAll(recenter) {
@@ -875,18 +898,37 @@ $('sheetCancel').onclick = closeMapSheet;
 $('sheet').onclick = e => { if (e.target === $('sheet')) closeMapSheet(); };
 $('gotoSettings').onclick = () => $('settingsTitle').scrollIntoView({ behavior: 'smooth' });
 $('centerCar').onclick = () => {
-  if (map && carMarker) map.setView(carMarker.getLatLng(), 17);
+  const c = state.current;
+  if (map && c && c.lat != null) centerOn(c.lat, c.lng, 16.5);
   else toast('No parking location yet');
 };
 $('centerMe').onclick = () => {
-  if (map && here) map.setView([here.lat, here.lng], 16);
-  locate(pos => { if (pos && map) map.setView([pos.lat, pos.lng], 16); });
+  if (here) centerOn(here.lat, here.lng, 15.5);
+  locate(pos => { if (pos) centerOn(pos.lat, pos.lng, 15.5); });
 };
 
 initMap();
 renderAll(true);
 fillAddress();
+// Block page zoom (pinch and double-tap); the map keeps its own pinch-to-zoom
+['gesturestart', 'gesturechange', 'gestureend'].forEach(t =>
+  document.addEventListener(t, e => { if (!e.target.closest('#map')) e.preventDefault(); }, { passive: false }));
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouchEnd < 300 && !e.target.closest('#map')) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
+
 locate();
+// Keep the location fresh while the page is open, so "Set Reminder" always uses where you are now
+if (navigator.geolocation) {
+  navigator.geolocation.watchPosition(p => {
+    here = { lat: p.coords.latitude, lng: p.coords.longitude };
+    setLoc(`Located, accurate to about ${Math.round(p.coords.accuracy * 3.28084)} ft`, true);
+    updateMap(false);
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 10000 });
+}
 setInterval(renderCurrent, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) renderCurrent(); });
 </script>
