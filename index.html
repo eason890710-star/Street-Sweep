@@ -923,14 +923,20 @@ document.addEventListener('touchend', e => {
   lastTouchEnd = now;
 }, { passive: false });
 
-locate();
-// Keep the location fresh while the page is open, so "Set Reminder" always uses where you are now
+// One location request when the page opens, kept fresh while it stays open,
+// so iOS asks for permission once per launch instead of twice
 if (navigator.geolocation) {
+  setLoc('Finding your location…');
   navigator.geolocation.watchPosition(p => {
+    const first = !here;
     here = { lat: p.coords.latitude, lng: p.coords.longitude };
     setLoc(`Located, accurate to about ${Math.round(p.coords.accuracy * 3.28084)} ft`, true);
-    updateMap(false);
-  }, () => {}, { enableHighAccuracy: true, maximumAge: 10000 });
+    updateMap(first && !state.current);
+  }, err => {
+    if (!here) setLoc('Could not get location: ' + err.message, false);
+  }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 });
+} else {
+  setLoc('Location is not supported in this browser', false);
 }
 setInterval(renderCurrent, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) renderCurrent(); });
